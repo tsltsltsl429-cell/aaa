@@ -1,36 +1,297 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Combined Webpage Example</title>
+    <title>摩擦力大挑戰：互動遊戲</title>
+    
+    <style>
+        body {
+            font-family: 'Arial', 'Microsoft JhengHei', sans-serif;
+            background-color: #f0f4f8;
+            color: #333;
+            text-align: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+        .difficulty-selection button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            margin: 10px;
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 1.1em;
+            transition: background-color 0.3s;
+        }
+        .difficulty-selection button:hover {
+            background-color: #2980b9;
+        }
+        #quiz-area {
+            display: none; /* 預設隱藏，選擇難度後顯示 */
+            text-align: left;
+            margin-top: 20px;
+        }
+        .timer-bar {
+            background-color: #e74c3c;
+            height: 20px;
+            width: 100%;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            transition: width 1s linear;
+        }
+        .question-card {
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #ecf0f1;
+        }
+        .options label {
+            display: block;
+            margin: 10px 0;
+            padding: 10px;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .options label:hover {
+            background: #dce4e8;
+        }
+        #result-area {
+            display: none;
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #e8f5e9;
+            border: 2px solid #4caf50;
+            border-radius: 10px;
+        }
+        .footer-score {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+    </style>
 </head>
 <body>
 
-    <h1>Welcome to My Combined HTML Page!</h1>
-    <p>This page demonstrates the basic elements of HTML working together.</p>
+<div class="container">
+    <h1>🏆 摩擦力大挑戰：極限速度與平衡</h1>
 
-    <hr> <h2>Navigation Menu</h2>
-    <nav>
-        <ul>
-            <li><a href="#home">Home Section (Anchor)</a></li>
-            <li><a href="about.html">About Page (Placeholder)</a></li>
-            <li><a href="https://www.google.com" target="_blank">Search Google (Opens in new tab)</a></li>
-        </ul>
-    </nav>
+    <div id="start-area">
+        <h2>請選擇難度級別：</h2>
+        <div class="difficulty-selection">
+            <button onclick="startGame(0)">小六難度 (1分/題)</button>
+            <button onclick="startGame(1)">中二難度 (2分/題)</button>
+            <button onclick="startGame(2)">中六難度 (3分/題)</button>
+        </div>
+        <p style="margin-top: 20px; color: #e74c3c;">**每題限時 15 秒**</p>
+    </div>
 
-    <hr>
+    <div id="quiz-area">
+        <p class="footer-score">得分：<span id="score">0</span> / 總題數：<span id="total-questions">0</span></p>
+        <div id="timer-display" style="font-weight: bold; margin-bottom: 10px;">剩餘時間：15 秒</div>
+        <div class="timer-bar" id="timer-bar"></div>
 
-    <h2 id="home">Media and Interaction</h2>
-    
-    <figure>
-        <img src="image-source.jpg" alt="A descriptive alt text for the placeholder image" width="400">
-        <figcaption>This is a placeholder image.</figcaption>
-    </figure>
+        <div class="question-card">
+            <h3 id="question-text"></h3>
+            <div class="options" id="options-container">
+                </div>
+            <button onclick="submitAnswer()" id="submit-btn" disabled style="padding: 10px 20px; background-color: #2ecc71; color: white; border: none; border-radius: 5px; margin-top: 15px;">提交答案</button>
+        </div>
+    </div>
 
-    <br>
+    <div id="result-area">
+        <h2>🎉 遊戲結束！</h2>
+        <p style="font-size: 1.5em;">您的最終得分：<span id="final-score">0</span> 分</p>
+        <p id="result-message"></p>
+        <button onclick="window.location.reload()" style="background-color: #f39c12; color: white; padding: 10px 20px; border: none; border-radius: 5px; margin-top: 20px;">重新開始</button>
+    </div>
 
-    <button type="button" onclick="alert('Button clicked!')">Click Me for a Pop-up</button>
+</div>
+
+<script>
+    // 遊戲所有題目數據（使用與您上一個回答一致的題目和答案）
+    const quizData = [
+        // 0-4: 小六難度 (1分)
+        { q: "當你把書本放在桌上，輕輕推它但推不動時，桌子給書本的摩擦力是什麼類型？", options: ["靜摩擦力", "動摩擦力", "滾動摩擦", "空氣阻力"], answer: "A", difficulty: 0, score: 1 },
+        { q: "為什麼在下雪天，人們的鞋底或車胎上通常會有很深的紋路？", options: ["讓鞋子看起來更時尚", "增加與地面的接觸面積", "增加摩擦力，防止滑倒", "讓走路發出聲音"], answer: "C", difficulty: 0, score: 1 },
+        { q: "請問以下哪種活動，是希望盡量減少摩擦力？", options: ["攀岩", "跑道賽跑", "溜冰", "拔河"], answer: "C", difficulty: 0, score: 1 },
+        { q: "小明用推車搬運貨物。當推車輪子轉動時，輪子和地面之間主要的摩擦力是什麼？", options: ["靜摩擦力", "滑動摩擦力", "滾動摩擦力", "萬有引力"], answer: "C", difficulty: 0, score: 1 },
+        { q: "我們在寫字時，筆尖與紙張之間的摩擦力是必須的。如果紙張表面非常光滑像玻璃，會有什麼困難？", options: ["筆尖會發熱", "無法留下筆跡", "摩擦力過大", "紙張會被推動"], answer: "B", difficulty: 0, score: 1 },
+        
+        // 5-12: 中二難度 (2分)
+        { q: "一個木箱放在水平地面上，受到的拉力 F 為 10N 時，木箱保持靜止。請問此時木箱受到的摩擦力是多大？", options: ["0N", "小於 10N", "等於 10N", "大於 10N"], answer: "C", difficulty: 1, score: 2 },
+        { q: "摩擦力的大小與接觸面積的關係通常是？", options: ["成正比", "成反比", "沒有直接關係", "面積越大，摩擦力越大"], answer: "C", difficulty: 1, score: 2 },
+        { q: "汽車急煞車時，車輪抱死不能轉動，在地面上滑行。此時輪胎受到的摩擦力是什麼？", options: ["靜摩擦力", "滾動摩擦力", "最大靜摩擦力", "動摩擦力"], answer: "D", difficulty: 1, score: 2 },
+        { q: "施加在物體上的拉力逐漸增大，當物體剛好要動起來時，這個時候的摩擦力稱為？", options: ["最大動摩擦力", "最大靜摩擦力", "臨界摩擦力", "靜止摩擦力"], answer: "B", difficulty: 1, score: 2 },
+        { q: "創意題：在一個斜坡上，想讓一個物體滑下來的速度越慢越好。除了改變斜坡角度，最有效的方法是什麼？", options: ["增加物體的質量", "在斜坡上鋪設光滑的布料", "增加物體的底面積", "在斜坡上鋪設粗糙的砂紙"], answer: "D", difficulty: 1, score: 2 },
+        { q: "一個物體在粗糙的水平面上向右運動，請問它受到的動摩擦力方向是？", options: ["向右", "向左", "向上", "向下"], answer: "B", difficulty: 1, score: 2 },
+        { q: "兩個完全相同的木塊，一個平放，一個側放，放在同一水平粗糙桌面上。如果用同樣的力推動它們，哪個更容易被推動？", options: ["平放的", "側放的", "一樣容易", "取決於推力大小"], answer: "C", difficulty: 1, score: 2 },
+        { q: "競爭題：在一場拔河比賽中，決定哪一隊會贏的最關鍵因素是什麼？", options: ["隊員的平均身高", "隊員手臂的力量", "隊員腳底與地面之間的摩擦力", "繩子的長度"], answer: "C", difficulty: 1, score: 2 },
+
+        // 13-19: 中六難度 (3分)
+        { q: "一個質量為 m 的物體放在水平面上，最大靜摩擦力 Fs,max = μs N。如果將物體換成 2m，請問最大靜摩擦力 Fs,max 會如何變化？", options: ["不變", "變為 1/2", "變為 2 倍", "變為 4 倍"], answer: "C", difficulty: 2, score: 3 },
+        { q: "一輛汽車在乾燥的瀝青路面上的動摩擦係數 μk 約為 0.7，質量為 1000kg。如果汽車滑行，其動摩擦力 Fk 約為多少？ (取 g = 10m/s²)", options: ["70N", "700N", "7000N", "70000N"], answer: "C", difficulty: 2, score: 3 },
+        { q: "創意題：一個跳傘員在達到終端速度時，他受到的空氣阻力與什麼力大小相等？", options: ["垂直向上的推力", "地球引力 (重力)", "升力", "慣性力"], answer: "B", difficulty: 2, score: 3 },
+        { q: "為了計算一個物體在斜面上開始滑動的最小角度 θ (臨界角)，需要知道哪個摩擦係數？", options: ["動摩擦係數 μk", "滾動摩擦係數 μr", "靜摩擦係數 μs", "空氣阻力係數 Cd"], answer: "C", difficulty: 2, score: 3 },
+        { q: "競爭題：當一個人走在路上時，地面對他的後腳施加的靜摩擦力方向是？ (假設此人正在加速向前走)", options: ["向前", "向後", "向上", "向下"], answer: "A", difficulty: 2, score: 3 },
+        { q: "兩個物體 A 和 B 緊貼在一起，一起在水平面上運動。若 A 受到向右的推力 F，且 A 和 B 之間沒有相對滑動，請問 B 受到 A 的摩擦力方向是？", options: ["向右", "向左", "摩擦力為零", "取決於 F 的大小"], answer: "A", difficulty: 2, score: 3 },
+        { q: "極限題：為什麼賽車在過彎時，工程師會設計「導流板」或「尾翼」？它們與摩擦力有何關係？", options: ["增加車身美觀", "減輕車身重量", "產生向上的升力來減少輪胎摩擦力", "產生向下的壓力 (負升力) 來增加輪胎與地面的正向力 N，進而增加最大靜摩擦力 Fs,max。"], answer: "D", difficulty: 2, score: 3 }
+    ];
+
+    let filteredQuestions = []; // 儲存該難度的題目
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let timer;
+    const TIME_LIMIT = 15; // 每題 15 秒
+
+    const startArea = document.getElementById('start-area');
+    const quizArea = document.getElementById('quiz-area');
+    const resultArea = document.getElementById('result-area');
+    const questionText = document.getElementById('question-text');
+    const optionsContainer = document.getElementById('options-container');
+    const scoreDisplay = document.getElementById('score');
+    const totalQuestionsDisplay = document.getElementById('total-questions');
+    const timerDisplay = document.getElementById('timer-display');
+    const timerBar = document.getElementById('timer-bar');
+    const submitBtn = document.getElementById('submit-btn');
+
+    /**
+     * 遊戲開始，根據難度篩選題目
+     * @param {number} difficulty - 難度級別 (0:小六, 1:中二, 2:中六)
+     */
+    function startGame(difficulty) {
+        filteredQuestions = quizData.filter(q => q.difficulty === difficulty);
+        
+        // 確保題目數量不超過 20 題的限制，並將總題數顯示出來
+        if (filteredQuestions.length > 20) {
+            filteredQuestions = filteredQuestions.slice(0, 20); 
+        }
+
+        currentQuestionIndex = 0;
+        score = 0;
+        totalQuestionsDisplay.textContent = filteredQuestions.length;
+        scoreDisplay.textContent = 0;
+        
+        startArea.style.display = 'none';
+        quizArea.style.display = 'block';
+        
+        loadQuestion();
+    }
+
+    /**
+     * 加載下一道題目
+     */
+    function loadQuestion() {
+        if (currentQuestionIndex >= filteredQuestions.length) {
+            return showResult(); // 題目結束
+        }
+
+        const q = filteredQuestions[currentQuestionIndex];
+        
+        // 重置選項、計時器
+        optionsContainer.innerHTML = '';
+        submitBtn.disabled = true;
+        submitBtn.style.backgroundColor = '#bdc3c7'; // 按鈕變灰
+        timerBar.style.width = '100%';
+
+        // 顯示題號和題目
+        questionText.innerHTML = `第 ${currentQuestionIndex + 1} 題 ( ${q.score} 分 )：<br>${q.q}`;
+        
+        // 顯示選項
+        q.options.forEach((option, index) => {
+            const optionLetter = String.fromCharCode(65 + index); // A, B, C, D
+            const label = document.createElement('label');
+            label.innerHTML = `<input type="radio" name="answer" value="${optionLetter}" onclick="submitBtn.disabled = false; submitBtn.style.backgroundColor = '#2ecc71';"> ${optionLetter}. ${option}`;
+            optionsContainer.appendChild(label);
+        });
+
+        startTimer();
+    }
+
+    /**
+     * 啟動計時器
+     */
+    function startTimer() {
+        clearInterval(timer); // 清除舊的計時器
+        let timeLeft = TIME_LIMIT;
+        
+        timerDisplay.textContent = `剩餘時間：${timeLeft} 秒`;
+        
+        timer = setInterval(() => {
+            timeLeft--;
+            timerDisplay.textContent = `剩餘時間：${timeLeft} 秒`;
+            timerBar.style.width = `${(timeLeft / TIME_LIMIT) * 100}%`;
+
+            if (timeLeft <= 0) {
+                clearInterval(timer);
+                submitAnswer(true); // 自動提交，視為答錯
+            }
+        }, 1000);
+    }
+
+    /**
+     * 提交答案
+     * @param {boolean} isTimeout - 是否因超時自動提交
+     */
+    function submitAnswer(isTimeout = false) {
+        clearInterval(timer);
+        
+        const selectedOption = document.querySelector('input[name="answer"]:checked');
+        const q = filteredQuestions[currentQuestionIndex];
+        let message = '';
+
+        if (!selectedOption || isTimeout) {
+            message = isTimeout ? "時間到！未作答或超時，不得分。" : "請選擇一個答案！";
+        } else {
+            const selectedAnswer = selectedOption.value;
+            
+            if (selectedAnswer === q.answer) {
+                score += q.score;
+                message = `✔ 答對了！獲得 ${q.score} 分。`;
+            } else {
+                message = `✖ 答錯了！正確答案是 ${q.answer}。`;
+            }
+        }
+        
+        scoreDisplay.textContent = score;
+
+        // 彈出訊息，然後進入下一題
+        alert(message); 
+        currentQuestionIndex++;
+        loadQuestion();
+    }
+
+    /**
+     * 顯示最終結果
+     */
+    function showResult() {
+        quizArea.style.display = 'none';
+        resultArea.style.display = 'block';
+        
+        const totalScorePossible = filteredQuestions.reduce((acc, q) => acc + q.score, 0);
+        
+        document.getElementById('final-score').textContent = score;
+        document.getElementById('result-message').innerHTML = 
+            `您總共回答了 ${filteredQuestions.length} 題。<br>總分 ${score} / ${totalScorePossible}。`;
+    }
+</script>
 
 </body>
 </html>
