@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校園食物鏈：動態平衡模擬器</title>
+    <style>
+        :root {
+            --bg-color: #f0f7f4;
+            --plant-col: #4CAF50; /* 綠 */
+            --bug-col: #FF9800;   /* 橙 */
+            --bird-col: #E91E63;  /* 紅 */
+            --cat-col: #673AB7;   /* 紫 */
+        }
+
+        body {
+            font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+            color: #333;
+        }
+
+        /* 標題與動態消息 */
+        h1 { color: #2e7d32; margin-bottom: 5px; }
+        .subtitle { color: #666; margin-bottom: 20px; }
+        
+        #news-ticker {
+            background: #fff;
+            padding: 10px;
+            border-radius: 50px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: inline-block;
+            min-width: 300px;
+            color: #d32f2f;
+            font-weight: bold;
+            margin-bottom: 20px;
+            height: 24px;
+        }
+
+        /* 遊戲主區域：四欄佈局 */
+        .game-board {
+            display: flex;
+            justify-content: center;
+            align-items: stretch;
+            gap: 15px;
+            max-width: 1400px;
+            margin: 0 auto;
+            flex-wrap: nowrap;
+        }
+
+        /* 每一欄的卡片設計 */
+        .column {
+            flex: 1;
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            transition: transform 0.2s;
+            border-top: 8px solid #ccc;
+        }
+
+        /* 各自的顏色 */
+        .col-plant { border-color: var(--plant-col); }
+        .col-bug { border-color: var(--bug-col); }
+        .col-bird { border-color: var(--bird-col); }
+        .col-cat { border-color: var(--cat-col); }
+
+        .role-name { font-size: 1.1em; color: #777; margin-bottom: 5px; }
+        .species-icon { font-size: 4em; display: block; margin: 10px 0; }
+        
+        /* 控制按鈕 */
+        .controls { display: flex; gap: 10px; align-items: center; justify-content: center; margin-bottom: 10px; }
+        button.ctrl-btn {
+            width: 40px; height: 40px; border-radius: 50%; border: none;
+            font-size: 1.5em; cursor: pointer; color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: 0.1s;
+        }
+        button.ctrl-btn:active { transform: scale(0.9); }
+        .btn-plus { background: #4caf50; }
+        .btn-minus { background: #f44336; }
+
+        /* 數字顯示 */
+        .count-display { font-size: 3.5em; font-weight: 800; font-family: 'Arial', sans-serif; margin: 5px 0; }
+        .col-plant .count-display { color: var(--plant-col); }
+        .col-bug .count-display { color: var(--bug-col); }
+        .col-bird .count-display { color: var(--bird-col); }
+        .col-cat .count-display { color: var(--cat-col); }
+
+        /* 進度條 */
+        .progress-container {
+            width: 100%; height: 12px; background: #eee; border-radius: 6px; overflow: hidden; margin-bottom: 10px;
+        }
+        .progress-bar { height: 100%; transition: width 0.5s ease-out; }
+
+        /* 視覺池 (Emoji) */
+        .visual-pool {
+            width: 100%; height: 100px;
+            background: #fafafa; border-radius: 8px; border: 1px solid #eee;
+            padding: 5px; overflow: hidden;
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 3px;
+        }
+        .mini-icon { font-size: 1.2em; animation: popIn 0.3s; }
+
+        /* 箭頭 */
+        .arrow { align-self: center; font-size: 2em; color: #ccc; font-weight: bold; }
+
+        /* 外來因素按鈕區 (Scenarios) */
+        .scenario-panel {
+            margin-top: 30px;
+            padding: 20px;
+            background: #e3f2fd;
+            border-radius: 15px;
+            max-width: 900px;
+            margin-left: auto; margin-right: auto;
+        }
+        .scenario-title { font-size: 1.2em; font-weight: bold; color: #1565c0; margin-bottom: 15px; }
+        
+        .action-btn {
+            padding: 12px 25px; margin: 5px; border: none; border-radius: 8px;
+            font-size: 1em; cursor: pointer; color: white; font-weight: bold;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.1); transition: transform 0.1s;
+        }
+        .action-btn:active { transform: translateY(4px); box-shadow: none; }
+
+        .btn-event-1 { background: #ff7043; } /* 殺蟲劑 */
+        .btn-event-2 { background: #7e57c2; } /* 貓入侵 */
+        .btn-event-3 { background: #66bb6a; } /* 植樹 */
+
+        /* 滅絕畫面 */
+        #game-over {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); z-index: 999;
+            display: none; flex-direction: column; justify-content: center; align-items: center; color: white;
+        }
+        #game-over h2 { color: #ff5252; font-size: 4em; margin: 0; }
+        #game-over p { font-size: 1.5em; color: #ccc; max-width: 600px; line-height: 1.6; }
+        .restart-btn {
+            padding: 15px 40px; font-size: 1.5em; background: #2196F3;
+            color: white; border: none; border-radius: 50px; cursor: pointer; margin-top: 20px;
+        }
+
+        @keyframes popIn { 0% { transform: scale(0); } 80% { transform: scale(1.2); } 100% { transform: scale(1); } }
+
+        /* RWD */
+        @media (max-width: 800px) {
+            .game-board { flex-direction: column; align-items: center; }
+            .column { width: 90%; margin-bottom: 10px; }
+            .arrow { transform: rotate(90deg); margin: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🏫 校園生態平衡：動態模擬</h1>
+    <p class="subtitle">注意：物種之間會互相捕食！請保持生態平衡。</p>
+    
+    <div id="news-ticker">生態觀察：系統啟動，目前一切和平...</div>
+
+    <div class="game-board">
+        <div class="column col-plant">
+            <div class="role-name">生產者</div>
+            <div class="species-icon">🌿</div>
+            <div class="controls">
+                <button class="ctrl-btn btn-minus" onclick="manualUpdate('plant', -1)">-</button>
+                <button class="ctrl-btn btn-plus" onclick="manualUpdate('plant', 1)">+</button>
+            </div>
+            <div id="num-plant" class="count-display">20</div>
+            <div class="progress-container">
+                <div id="bar-plant" class="progress-bar" style="background: var(--plant-col); width: 100%;"></div>
+            </div>
+            <div class="visual-pool" id="pool-plant"></div>
+            <div style="color:#666; font-size:0.9em;">杜鵑花 / 樹葉</div>
+        </div>
+
+        <div class="arrow">➔</div>
+
+        <div class="column col-bug">
+            <div class="role-name">初級消費者</div>
+            <div class="species-icon">🐛</div>
+            <div class="controls">
+                <button class="ctrl-btn btn-minus" onclick="manualUpdate('bug', -1)">-</button>
+                <button class="ctrl-btn btn-plus" onclick="manualUpdate('bug', 1)">+</button>
+            </div>
+            <div id="num-bug" class="count-display">10</div>
+            <div class="progress-container">
+                <div id="bar-bug" class="progress-bar" style="background: var(--bug-col); width: 50%;"></div>
+            </div>
+            <div class="visual-pool" id="pool-bug"></div>
+            <div style="color:#666; font-size:0.9em;">毛蟲</div>
+        </div>
+
+        <div class="arrow">➔</div>
+
+        <div class="column col-bird">
+            <div class="role-name">次級消費者</div>
+            <div class="species-icon">🐦</div>
+            <div class="controls">
+                <button class="ctrl-btn btn-minus" onclick="manualUpdate('bird', -1)">-</button>
+                <button class="ctrl-btn btn-plus" onclick="manualUpdate('bird', 1)">+</button>
+            </div>
+            <div id="num-bird" class="count-display">5</div>
+            <div class="progress-container">
+                <div id="bar-bird" class="progress-bar" style="background: var(--bird-col); width: 25%;"></div>
+            </div>
+            <div class="visual-pool" id="pool-bird"></div>
+            <div style="color:#666; font-size:0.9em;">紅耳鵯</div>
+        </div>
+
+        <div class="arrow">➔</div>
+
+        <div class="column col-cat">
+            <div class="role-name">頂級消費者</div>
+            <div class="species-icon">🐈</div>
+            <div class="controls">
+                <button class="ctrl-btn btn-minus" onclick="manualUpdate('cat', -1)">-</button>
+                <button class="ctrl-btn btn-plus" onclick="manualUpdate('cat', 1)">+</button>
+            </div>
+            <div id="num-cat" class="count-display">2</div>
+            <div class="progress-container">
+                <div id="bar-cat" class="progress-bar" style="background: var(--cat-col); width: 10%;"></div>
+            </div>
+            <div class="visual-pool" id="pool-cat"></div>
+            <div style="color:#666; font-size:0.9em;">流浪貓 / 蛇</div>
+        </div>
+    </div>
+
+    <div class="scenario-panel">
+        <div class="scenario-title">⚡ 外來因素（點擊觸發事件）</div>
+        <button class="action-btn btn-event-1" onclick="triggerEvent('pesticide')">☠️ 噴灑殺蟲劑</button>
+        <button class="action-btn btn-event-2" onclick="triggerEvent('cats_invade')">🐈 野貓大量入侵</button>
+        <button class="action-btn btn-event-3" onclick="triggerEvent('planting')">🌳 植樹日 (恢復植物)</button>
+        <button class="action-btn" style="background:#607d8b" onclick="resetGame()">🔄 重置生態</button>
+    </div>
+
+    <div id="game-over">
+        <div style="font-size: 5em;">☠️</div>
+        <h2>生態崩潰</h2>
+        <p id="fail-reason">原因...</p>
+        <button class="restart-btn" onclick="resetGame()">重新開始</button>
+    </div>
+
+    <script>
+        // === 遊戲核心數據 ===
+        let eco = {
+            plant: 20,
+            bug: 10,
+            bird: 5,
+            cat: 2
+        };
+        
+        // 最大值 (用於顯示進度條比例)
+        const MAX = 25;
+        let gameActive = true;
+        let tickerTimer;
+
+        // 圖示庫
+        const icons = { plant: '🍃', bug: '🐛', bird: '🐦', cat: '🐈' };
+
+        // 初始化
+        window.onload = function() {
+            renderAll();
+            // 啟動自動生態循環 (每 1.5 秒運算一次)
+            setInterval(simulateEcosystem, 1500);
+        };
+
+        // === 手動操作 ===
+        function manualUpdate(type, change) {
+            if (!gameActive) return;
+            eco[type] += change;
+            if(eco[type] < 0) eco[type] = 0;
+            renderAll();
+            showNews(`你${change>0?'增加':'減少'}了${getChiName(type)}的數量。`);
+        }
+
+        // === 外來因素事件 ===
+        function triggerEvent(eventType) {
+            if (!gameActive) return;
+
+            if (eventType === 'pesticide') {
+                eco.bug = 0;
+                eco.plant = Math.min(MAX, eco.plant + 5); // 植物稍微恢復
+                showNews("⚠️ 校工噴灑了殺蟲劑！毛蟲全部死亡！");
+            } 
+            else if (eventType === 'cats_invade') {
+                eco.cat += 5;
+                showNews("⚠️ 學校附近來了一群流浪貓！頂級掠食者增加！");
+            }
+            else if (eventType === 'planting') {
+                eco.plant = 20;
+                eco.bug = Math.min(MAX, eco.bug + 3); // 蟲跟著回來一點
+                showNews("🌳 植樹日：種植了大量新植物！");
+            }
+            renderAll();
+        }
+
+        // === 自動生態循環邏輯 (這就是物種互相影響的核心) ===
+        function simulateEcosystem() {
+            if (!gameActive) return;
+
+            let news = "";
+
+            // 1. 貓 吃 鳥
+            if (eco.cat > 0 && eco.bird > 0) {
+                // 如果貓太多，鳥會被吃很快
+                if (eco.cat > eco.bird) {
+                    eco.bird = Math.max(0, eco.bird - 2);
+                    news = "🐈 貓太多了，紅耳鵯被大量捕食！";
+                } else if (Math.random() > 0.6) { // 隨機捕食
+                    eco.bird--;
+                    news = "🐈 貓捉了一隻紅耳鵯。";
+                }
+            } else if (eco.cat > 0 && eco.bird === 0) {
+                // 貓沒鳥吃，貓會餓死或離開
+                if (Math.random() > 0.5) {
+                    eco.cat--;
+                    news = "🐈 沒有鳥可以抓，流浪貓餓著肚子離開了...";
+                }
+            }
+
+            // 2. 鳥 吃 蟲
+            if (eco.bird > 0 && eco.bug > 0) {
+                if (eco.bird > eco.bug) {
+                    eco.bug = Math.max(0, eco.bug - 2);
+                    news = "🐦 鳥群正在瘋狂吃蟲！";
+                } else if (Math.random() > 0.5) {
+                    eco.bug--;
+                }
+            } else if (eco.bird > 0 && eco.bug === 0) {
+                // 鳥沒蟲吃，餓死或飛走
+                if (Math.random() > 0.5) {
+                    eco.bird--;
+                    news = "🐦 找不到毛蟲，紅耳鵯飛走去別的地方覓食了。";
+                }
+            }
+
+            // 3. 蟲 吃 植物
+            if (eco.bug > 0 && eco.plant > 0) {
+                if (eco.bug > eco.plant) {
+                    eco.plant = Math.max(0, eco.plant - 2);
+                    news = "🐛 蟲災警報！植物快被吃光了！";
+                } else if (Math.random() > 0.5) {
+                    eco.plant--;
+                }
+            } else if (eco.bug > 0 && eco.plant === 0) {
+                // 蟲沒植物吃，餓死
+                eco.bug = Math.max(0, eco.bug - 3); // 死很快
+                news = "💀 植物死光了，毛蟲正在快速餓死...";
+            }
+
+            // 4. 植物生長 (如果沒有太多蟲，植物會慢慢長回來)
+            if (eco.plant < 10 && eco.bug < 3) {
+                eco.plant++;
+                // news = "🌿 植物正在慢慢生長...";
+            }
+
+            renderAll();
+            if(news) showNews(news);
+            checkGameOver();
+        }
+
+        // === 渲染畫面 ===
+        function renderAll() {
+            for (let type in eco) {
+                let val = eco[type];
+                
+                // 數字
+                document.getElementById(`num-${type}`).innerText = val;
+                
+                // 進度條
+                let pct = Math.min(100, (val / MAX) * 100);
+                document.getElementById(`bar-${type}`).style.width = pct + "%";
+                
+                // 圖示池 (限制顯示數量以免畫面爆炸)
+                let pool = document.getElementById(`pool-${type}`);
+                pool.innerHTML = "";
+                let displayCount = Math.min(val, 18);
+                for(let i=0; i<displayCount; i++) {
+                    let span = document.createElement("span");
+                    span.className = "mini-icon";
+                    span.innerText = icons[type];
+                    // 植物變化小彩蛋
+                    if(type === 'plant' && i % 3 === 0) span.innerText = '🌺';
+                    if(type === 'cat' && i % 2 === 0) span.innerText = '🐍'; // 偶爾出現蛇
+                    pool.appendChild(span);
+                }
+            }
+        }
+
+        // === 檢查遊戲結束 ===
+        function checkGameOver() {
+            // 情境 1: 生產者滅絕
+            if (eco.plant === 0 && eco.bug === 0 && eco.bird === 0) {
+                triggerGameOver("【完全死寂】\n植物死光了，接著所有動物也因為飢荒而全部滅絕。\n校園變成了一片死寂的荒地。");
+            }
+            // 情境 2: 頂級掠食者過剩導致崩潰
+            else if (eco.cat > 15 && eco.bird === 0) {
+                triggerGameOver("【生態失衡】\n貓/蛇的數量太多，把所有的鳥都吃光了！\n接下來貓也會因為沒有食物而餓死。");
+            }
+            // 情境 3: 蟲災導致不可逆
+            else if (eco.bug > 20 && eco.plant === 0) {
+                triggerGameOver("【蟲災毀滅】\n毛蟲徹底吃光了校園的植物。\n沒有植物，氧氣減少，且毛蟲最終也會集體餓死。");
+            }
+        }
+
+        function triggerGameOver(reason) {
+            gameActive = false;
+            document.getElementById('fail-reason').innerText = reason;
+            document.getElementById('game-over').style.display = "flex";
+        }
+
+        function resetGame() {
+            eco = { plant: 20, bug: 10, bird: 5, cat: 2 };
+            gameActive = true;
+            document.getElementById('game-over').style.display = "none";
+            renderAll();
+            showNews("生態系統已重置，準備開始！");
+        }
+
+        // === 工具函數 ===
+        function showNews(text) {
+            let ticker = document.getElementById('news-ticker');
+            ticker.innerText = text;
+            ticker.style.animation = "none";
+            ticker.offsetHeight; /* trigger reflow */
+            ticker.style.animation = "popIn 0.5s";
+        }
+
+        function getChiName(type) {
+            const names = { plant: '植物', bug: '毛蟲', bird: '紅耳鵯', cat: '貓' };
+            return names[type];
+        }
+
+    </script>
+</body>
+</html>
